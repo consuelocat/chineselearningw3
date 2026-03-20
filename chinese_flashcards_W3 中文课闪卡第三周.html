@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中文闪卡练习 Chinese Flashcards</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #FFF0F4; min-height: 100vh; display: flex; justify-content: center; padding: 20px; }
+    .app { width: 100%; max-width: 600px; }
+    .header { text-align: center; margin-bottom: 16px; padding-top: 10px; }
+    .header h2 { font-size: 22px; font-weight: 700; color: #CC0033; }
+    .header p { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 14px; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #eee; background: white; font-size: 11px; cursor: pointer; font-weight: 600; transition: all .15s; color: #555; line-height: 1.5; text-align: center; }
+    .filter-btn .cat-en { display: block; font-size: 9px; font-weight: 400; opacity: 0.8; }
+    .filter-btn.active { color: white; border-color: transparent; }
+    .filter-btn.active .cat-en { opacity: 0.85; }
+    .filter-btn[data-cat="all"].active    { background: #FF4D6A; }
+    .filter-btn[data-cat="动词"].active   { background: #378ADD; }
+    .filter-btn[data-cat="名词"].active   { background: #3B6D11; }
+    .filter-btn[data-cat="形容词"].active { background: #BA7517; }
+    .filter-btn[data-cat="时间"].active   { background: #7F77DD; }
+    .filter-btn[data-cat="礼貌"].active   { background: #D85A30; }
+    .filter-btn[data-cat="短语"].active   { background: #A32D2D; }
+    .filter-btn[data-cat="国家"].active   { background: #0F6E56; }
+    .filter-btn[data-cat="句型"].active   { background: #993556; }
+    .filter-btn[data-cat="活动"].active   { background: #854F0B; }
+
+    .progress-bar { height: 6px; background: #FFD6E0; border-radius: 3px; margin-bottom: 10px; }
+    .progress-fill { height: 100%; border-radius: 3px; background: #FF4D6A; transition: width .3s; }
+    .counter { text-align: center; font-size: 12px; color: #aaa; margin-bottom: 12px; }
+    .counter span { font-weight: 700; color: #FF4D6A; }
+
+    .scene { width: 100%; height: 240px; perspective: 800px; cursor: pointer; margin-bottom: 14px; }
+    .card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform .45s ease; }
+    .card.flipped { transform: rotateY(180deg); }
+    .face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .front { background: white; border: 2px solid #FFD6E0; }
+    .back  { background: #FFF0F4; border: 2px solid #FF4D6A; transform: rotateY(180deg); }
+
+    .category-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 12px; color: white; display: flex; align-items: center; gap: 5px; }
+    .badge-en { font-size: 9px; font-weight: 400; opacity: 0.88; }
+
+    .chinese { font-size: 44px; font-weight: 700; color: #CC0033; line-height: 1.1; text-align: center; }
+    .pinyin  { font-size: 16px; color: #FF8899; margin-top: 8px; letter-spacing: 1px; }
+    .tap-hint { font-size: 11px; color: #ccc; margin-top: 14px; }
+    .english { font-size: 24px; font-weight: 700; color: #333; text-align: center; line-height: 1.3; }
+    .swedish { font-size: 14px; color: #7A9A7A; margin-top: 8px; font-style: italic; }
+    .back-zh { font-size: 12px; color: #bbb; margin-top: 12px; text-align: center; }
+
+    .controls { display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .btn { padding: 10px 24px; border-radius: 24px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    .btn:active { opacity: .75; }
+    .btn-prev    { background: #FFD6E0; color: #CC0033; }
+    .btn-next    { background: #FF4D6A; color: white; }
+    .btn-flip    { background: white; color: #FF4D6A; border: 1.5px solid #FF4D6A; }
+    .btn-shuffle { background: #FFF0F4; color: #CC0033; border: 1.5px solid #FFD6E0; font-size: 12px; }
+
+    .known-bar  { display: flex; gap: 10px; justify-content: center; margin-bottom: 8px; }
+    .btn-known  { padding: 8px 20px; border-radius: 20px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-known.yes { background: #C0DD97; color: #27500A; }
+    .btn-known.no  { background: #F5C4B3; color: #712B13; }
+    .known-count { font-size: 11px; color: #aaa; text-align: center; margin-bottom: 12px; }
+
+    .cat-color-all      { background: #FF4D6A; }
+    .cat-color-动词     { background: #378ADD; }
+    .cat-color-名词     { background: #3B6D11; }
+    .cat-color-形容词   { background: #BA7517; }
+    .cat-color-时间     { background: #7F77DD; }
+    .cat-color-礼貌     { background: #D85A30; }
+    .cat-color-短语     { background: #A32D2D; }
+    .cat-color-国家     { background: #0F6E56; }
+    .cat-color-句型     { background: #993556; }
+    .cat-color-活动     { background: #854F0B; }
+
+    @media (max-width: 480px) {
+      .chinese { font-size: 36px; }
+      .english { font-size: 20px; }
+      .scene { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h2>🀄 中文闪卡练习</h2>
+    <p>Click card to flip · Mark progress · Filter by category</p>
+  </div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="progress-bar"><div class="progress-fill" id="pbar"></div></div>
+  <div class="counter">Card <span id="cur">1</span> of <span id="tot">1</span></div>
+
+  <div class="scene" onclick="flipCard()">
+    <div class="card" id="card">
+      <div class="face front" id="front"></div>
+      <div class="face back"  id="back"></div>
+    </div>
+  </div>
+
+  <div class="known-bar">
+    <button class="btn-known no"  onclick="markKnown(false)">😅 Still learning</button>
+    <button class="btn-known yes" onclick="markKnown(true)">✅ Got it!</button>
+  </div>
+  <div class="known-count" id="known-count">Mastered: 0 cards</div>
+
+  <div class="controls">
+    <button class="btn btn-prev" onclick="nav(-1)">◀ Prev</button>
+    <button class="btn btn-flip" onclick="flipCard()">🔄 Flip</button>
+    <button class="btn btn-next" onclick="nav(1)">Next ▶</button>
+  </div>
+  <div style="text-align:center; margin-top: 8px;">
+    <button class="btn btn-shuffle" onclick="shuffle()">🔀 Shuffle</button>
+  </div>
+</div>
+
+<script>
+const CATS_META = {
+  all:    { label: "全部",   en: "All cards",          emoji: "📚" },
+  动词:   { label: "动词",   en: "Verbs",              emoji: "🟦" },
+  名词:   { label: "名词",   en: "Nouns",              emoji: "🟩" },
+  形容词: { label: "形容词", en: "Adjectives",         emoji: "🟨" },
+  时间:   { label: "时间",   en: "Time Words",         emoji: "🟪" },
+  礼貌:   { label: "礼貌",   en: "Polite Words",       emoji: "🟧" },
+  短语:   { label: "短语",   en: "Phrases",            emoji: "🟥" },
+  国家:   { label: "国家",   en: "Countries",          emoji: "🌍" },
+  句型:   { label: "句型",   en: "Sentence Patterns",  emoji: "🩷" },
+  活动:   { label: "活动",   en: "Activities",         emoji: "🟤" },
+};
+
+const ALL = [
+  {cat:"动词",   zh:"带上",           py:"dài shàng",               en:"bring / carry",                sv:"ta med"},
+  {cat:"动词",   zh:"记得",           py:"jìde",                     en:"remember",                     sv:"kom ihåg"},
+  {cat:"动词",   zh:"见",             py:"jiàn",                     en:"see / meet",                   sv:"träffas"},
+  {cat:"名词",   zh:"课本",           py:"kèběn",                    en:"textbook",                     sv:"lärobok"},
+  {cat:"名词",   zh:"笔记本",         py:"bǐjìběn",                  en:"notebook",                     sv:"anteckningsbok"},
+  {cat:"名词",   zh:"笔",             py:"bǐ",                       en:"pen",                          sv:"penna"},
+  {cat:"形容词", zh:"打印的",         py:"dǎyìn de",                 en:"printed",                      sv:"utskriven"},
+  {cat:"时间",   zh:"明天",           py:"míngtiān",                 en:"tomorrow",                     sv:"imorgon"},
+  {cat:"礼貌",   zh:"请",             py:"qǐng",                     en:"please",                       sv:"snälla / vänligen"},
+  {cat:"礼貌",   zh:"哦",             py:"ó",                        en:"soft emphasis particle",       sv:"(partikel)"},
+  {cat:"短语",   zh:"请记得带上…",    py:"qǐng jìde dài shàng …",   en:"Please remember to bring …",   sv:"Kom ihåg att ta med …"},
+  {cat:"短语",   zh:"明天见",         py:"míngtiān jiàn",            en:"See you tomorrow",             sv:"Vi ses imorgon"},
+  {cat:"国家",   zh:"瑞典",           py:"Ruìdiǎn",                  en:"Sweden",                       sv:"Sverige"},
+  {cat:"国家",   zh:"伊朗",           py:"Yīlǎng",                   en:"Iran",                         sv:"Iran"},
+  {cat:"国家",   zh:"罗马尼亚",       py:"Luómǎníyà",                en:"Romania",                      sv:"Rumänien"},
+  {cat:"国家",   zh:"中国",           py:"Zhōngguó",                 en:"China",                        sv:"Kina"},
+  {cat:"句型",   zh:"你好",           py:"nǐ hǎo",                   en:"Hello",                        sv:"Hej"},
+  {cat:"句型",   zh:"我叫…",          py:"wǒ jiào …",                en:"My name is …",                 sv:"Jag heter …"},
+  {cat:"句型",   zh:"你叫什么名字？", py:"nǐ jiào shénme míngzi?",  en:"What's your name?",            sv:"Vad heter du?"},
+  {cat:"句型",   zh:"我是…人",        py:"wǒ shì … rén",             en:"I am from …",                  sv:"Jag är från …"},
+  {cat:"句型",   zh:"你是哪国人？",   py:"nǐ shì nǎ guó rén?",      en:"Where are you from?",          sv:"Varifrån kommer du?"},
+  {cat:"句型",   zh:"你在干什么？",   py:"nǐ zài gàn shénme?",      en:"What are you doing?",          sv:"Vad gör du?"},
+  {cat:"句型",   zh:"我在上课",       py:"wǒ zài shàng kè",          en:"I am having class",            sv:"Jag har lektion"},
+  {cat:"句型",   zh:"我在学中文",     py:"wǒ zài xué Zhōngwén",      en:"I am learning Chinese",        sv:"Jag lär mig kinesiska"},
+  {cat:"句型",   zh:"我在度假",       py:"wǒ zài dùjià",             en:"I am on vacation",             sv:"Jag är på semester"},
+  {cat:"活动",   zh:"吃饭",           py:"chī fàn",                  en:"eat",                          sv:"äta"},
+  {cat:"活动",   zh:"做饭",           py:"zuò fàn",                  en:"cook",                         sv:"laga mat"},
+  {cat:"活动",   zh:"洗澡",           py:"xǐ zǎo",                   en:"take a shower",                sv:"duscha"},
+  {cat:"活动",   zh:"上学",           py:"shàng xué",                en:"go to school",                 sv:"gå i skolan"},
+  {cat:"活动",   zh:"写作业",         py:"xiě zuòyè",                en:"do homework",                  sv:"göra läxor"},
+  {cat:"活动",   zh:"玩游戏",         py:"wán yóuxì",                en:"play games",                   sv:"spela spel"},
+  {cat:"活动",   zh:"练功",           py:"liàn gōng",                en:"practice skills",              sv:"träna"},
+  {cat:"活动",   zh:"睡觉",           py:"shuì jiào",                en:"sleep",                        sv:"sova"},
+  {cat:"活动",   zh:"看电视",         py:"kàn diànshì",              en:"watch TV",                     sv:"titta på TV"},
+  {cat:"活动",   zh:"看电影",         py:"kàn diànyǐng",             en:"watch a movie",                sv:"titta på film"},
+  {cat:"活动",   zh:"工作",           py:"gōngzuò",                  en:"work",                         sv:"arbeta"},
+  {cat:"活动",   zh:"度假",           py:"dùjià",                    en:"go on vacation",               sv:"semestra"},
+  {cat:"活动",   zh:"遛狗",           py:"liù gǒu",                  en:"walk the dog",                 sv:"rasta hunden"},
+  {cat:"活动",   zh:"照顾孩子",       py:"zhàogù háizi",             en:"take care of kids",            sv:"ta hand om barn"},
+  {cat:"活动",   zh:"买东西",         py:"mǎi dōngxi",               en:"buy things",                   sv:"handla"},
+  {cat:"活动",   zh:"逛街",           py:"guàng jiē",                en:"go shopping",                  sv:"gå på stan"},
+];
+
+let deck = [...ALL];
+let idx = 0;
+let known = new Set();
+let activeCat = "all";
+
+function buildFilters() {
+  const el = document.getElementById('filters');
+  el.innerHTML = '';
+  Object.keys(CATS_META).forEach(function(c) {
+    const m = CATS_META[c];
+    const b = document.createElement('button');
+    b.className = 'filter-btn' + (c === activeCat ? ' active' : '');
+    b.dataset.cat = c;
+    b.innerHTML = m.emoji + ' ' + m.label + '<span class="cat-en">' + m.en + '</span>';
+    b.onclick = function() { setFilter(c); };
+    el.appendChild(b);
+  });
+}
+
+function setFilter(cat) {
+  activeCat = cat;
+  deck = cat === 'all' ? [...ALL] : ALL.filter(function(d) { return d.cat === cat; });
+  idx = 0;
+  document.getElementById('card').classList.remove('flipped');
+  buildFilters();
+  render();
+}
+
+function render() {
+  const d = deck[idx];
+  document.getElementById('card').classList.remove('flipped');
+  document.getElementById('cur').textContent = idx + 1;
+  document.getElementById('tot').textContent = deck.length;
+  document.getElementById('pbar').style.width = ((idx + 1) / deck.length * 100) + '%';
+  document.getElementById('known-count').textContent = 'Mastered: ' + known.size + ' / ' + deck.length + ' cards';
+
+  const m = CATS_META[d.cat];
+
+  document.getElementById('front').innerHTML =
+    '<span class="category-badge cat-color-' + d.cat + '">' +
+      m.emoji + ' ' + m.label + ' <span class="badge-en">· ' + m.en + '</span>' +
+    '</span>' +
+    '<div class="chinese">' + d.zh + '</div>' +
+    '<div class="pinyin">' + d.py + '</div>' +
+    '<div class="tap-hint">👆 Tap to flip</div>';
+
+  document.getElementById('back').innerHTML =
+    '<span class="category-badge cat-color-' + d.cat + '">' +
+      m.emoji + ' ' + m.label + ' <span class="badge-en">· ' + m.en + '</span>' +
+    '</span>' +
+    '<div class="english">' + d.en + '</div>' +
+    (d.sv ? '<div class="swedish">🇸🇪 ' + d.sv + '</div>' : '') +
+    '<div class="back-zh">' + d.zh + ' · ' + d.py + '</div>';
+}
+
+function flipCard() {
+  document.getElementById('card').classList.toggle('flipped');
+}
+
+function nav(dir) {
+  idx = (idx + dir + deck.length) % deck.length;
+  render();
+}
+
+function shuffle() {
+  for (var i = deck.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+  }
+  idx = 0;
+  render();
+}
+
+function markKnown(yes) {
+  var key = deck[idx].zh;
+  if (yes) known.add(key); else known.delete(key);
+  document.getElementById('known-count').textContent = 'Mastered: ' + known.size + ' / ' + deck.length + ' cards';
+  nav(1);
+}
+
+buildFilters();
+render();
+</script>
+</body>
+</html>
